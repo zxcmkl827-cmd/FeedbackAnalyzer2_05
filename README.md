@@ -68,4 +68,3 @@ feedback_analyzer_cpp/
 입력 CSV 파일은 다음과 같은 형식이어야 합니다:
 - 필수 컬럼: `text`
 - 텍스트 컬럼에 피드백 내용 포함
-
