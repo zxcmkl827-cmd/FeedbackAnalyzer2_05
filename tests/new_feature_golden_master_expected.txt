@@ -1,0 +1,16 @@
+Golden Master: New Feature output
+
+[Weighted Sentiment]
+positive_wins_by_count|좋아요 만족 추천하지만 조금 불편합니다.|긍정=1,중립=0,부정=0
+negative_wins_by_count|불만 실망 문제는 있지만 상담은 좋아요.|긍정=0,중립=0,부정=1
+positive_wins_by_weight|최고입니다만 배송이 늦어요.|긍정=1,중립=0,부정=0
+equal_scores_are_neutral|좋아요 하지만 불편합니다.|긍정=0,중립=1,부정=0
+neutral_context_overrides_score|좋아요 버튼과 환불 정책 안내를 확인했습니다.|긍정=0,중립=1,부정=0
+
+[CSV Export]
+<UTF8_BOM>text,sentiment,category
+제품이 정말 좋아요.,긍정,
+가격이 비싸요.,부정,가격
+"배송이 빠르고, 포장이 ""좋아요""
+다음에도 구매",긍정,배송
+

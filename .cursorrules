@@ -1,0 +1,129 @@
+project:
+  language: "C++"
+  standard: "C++17 이상"
+  goal: "고객 피드백 분석 시스템을 테스트 가능한 Boundary-Control-Entity 구조로 유지한다."
+
+code_style:
+  formatter: "clang-format"
+  naming:
+    types: "PascalCase"
+    functions: "camelCase"
+    variables: "camelCase"
+    constants: "kPascalCase"
+    files:
+      headers: "PascalCase.h"
+      sources: "PascalCase.cpp"
+      tests: "*Test.cpp"
+  header_source_separation:
+    - "헤더에는 선언만 둔다."
+    - "구현은 소스 파일에 둔다."
+    - "템플릿 또는 constexpr처럼 C++ 규칙상 필요한 경우만 헤더 구현을 허용한다."
+    - "헤더는 include guard 또는 pragma once를 사용한다."
+    - "헤더는 불필요한 include 대신 전방 선언을 우선한다."
+
+architecture:
+  layers:
+    boundary:
+      responsibility: "외부 입력 수신, 입력 검증, 출력 변환, 오류 응답 생성을 담당한다."
+    control:
+      responsibility: "유스케이스 흐름 조정, Boundary 요청을 Entity 작업으로 연결, 저장소 호출 순서를 담당한다."
+    entity:
+      responsibility: "도메인 규칙, 불변식, 분석 결과 의미를 담당한다."
+  dependency_direction:
+    - "boundary -> control"
+    - "control -> entity"
+    - "control -> data_interface"
+    - "data_implementation -> data_interface"
+    - "entity는 boundary, control, data_implementation에 의존하지 않는다."
+  rules:
+    - "Boundary는 도메인 규칙을 직접 판단하지 않는다."
+    - "Control은 출력 포맷을 만들지 않는다."
+    - "Entity는 HTTP, CSV, 파일 시스템, UI를 알지 않는다."
+    - "레이어 간 전달 데이터는 명시적 계약으로 정의한다."
+
+tdd_rules:
+  red_phase:
+    description: "실패하는 테스트를 먼저 작성하여 기대 동작과 계약을 고정한다."
+    rules:
+      - "프로덕션 코드 변경 전에 실패 테스트를 먼저 작성한다."
+      - "테스트 이름은 조건, 행위, 기대 결과를 드러낸다."
+      - "테스트는 하나의 규칙만 검증한다."
+    must_not:
+      - "테스트 없이 프로덕션 코드를 먼저 수정하지 않는다."
+      - "구현 세부사항 또는 private 멤버에 의존하지 않는다."
+  green_phase:
+    description: "실패 테스트를 통과시키는 최소 구현만 수행한다."
+    rules:
+      - "현재 실패 테스트를 통과시키는 가장 작은 변경만 허용한다."
+      - "기존 테스트 실패가 발생하면 즉시 원인을 확인한다."
+    must_not:
+      - "미래 요구사항을 예측해 범용 구조를 만들지 않는다."
+      - "테스트가 요구하지 않는 기능을 추가하지 않는다."
+  refactor_phase:
+    description: "모든 테스트가 통과한 뒤 동작을 유지하며 구조를 개선한다."
+    rules:
+      - "리팩터링 전후 관련 테스트는 모두 통과해야 한다."
+      - "중복 제거, 이름 개선, 책임 분리, 의존성 정리를 수행한다."
+    must_not:
+      - "테스트 실패 상태에서 리팩터링을 계속하지 않는다."
+      - "동작 변경과 구조 개선을 한 단계에 섞지 않는다."
+
+testing:
+  framework:
+    unit: "Google Test"
+    approval: "Approval Tests"
+    alternatives_allowed: false
+  structure:
+    - "각 테스트는 Given-When-Then 주석 구조를 사용한다."
+    - "Given은 입력, 설정, fixture 상태를 준비한다."
+    - "When은 검증 대상 동작을 1회 실행한다."
+    - "Then은 관찰 가능한 결과를 검증한다."
+  fixture_rules:
+    - "공통 준비가 2개 이상의 테스트에서 반복될 때만 test fixture를 사용한다."
+    - "fixture는 테스트 간 공유 mutable 상태를 남기지 않는다."
+    - "SetUp은 테스트 의도를 숨길 만큼 많은 데이터를 만들지 않는다."
+    - "TearDown은 외부 자원을 사용한 테스트에서만 정의한다."
+  approval_test_rules:
+    - "HTML, CSV, JSON, 대량 텍스트 출력은 Approval Test로 고정한다."
+    - "승인 파일 변경은 출력 계약 변경으로 간주한다."
+    - "Approval Test는 비결정적 값, 시간, 순서 의존 값을 제거한 뒤 수행한다."
+  coverage:
+    domain_line: 95
+    domain_branch: 90
+    boundary_line: 90
+    data_line: 85
+    contract_tests: 100
+
+forbidden:
+  - "std::cout 또는 std::cerr 디버그 출력을 남발하지 않는다."
+  - "매직 넘버와 매직 문자열을 하드코딩하지 않는다."
+  - "catch(...)를 무분별하게 사용하지 않는다."
+  - "헤더 파일에 일반 함수 또는 클래스 메서드 구현을 포함하지 않는다."
+  - "전역 mutable 상태를 남용하지 않는다."
+  - "using namespace std를 헤더에 작성하지 않는다."
+  - "raw pointer 소유권을 명확한 규칙 없이 사용하지 않는다."
+  - "new와 delete를 직접 짝지어 자원 수명을 관리하지 않는다."
+  - "테스트를 통과시키기 위해 프로덕션 계약을 완화하지 않는다."
+  - "레이어를 우회하여 Boundary에서 Entity 내부 규칙을 직접 수정하지 않는다."
+
+file_structure:
+  tree: |
+    # boundary/  외부 입력, 검증, 출력 변환, 오류 응답
+    # control/   유스케이스 조정, 흐름 제어, 의존성 연결
+    # entity/    도메인 모델, 규칙, 불변식, 분석 결과
+    # tests/     Google Test 및 Approval Test 기반 테스트
+  rules:
+    - "Boundary 코드는 boundary 디렉터리에 둔다."
+    - "Control 코드는 control 디렉터리에 둔다."
+    - "Entity 코드는 entity 디렉터리에 둔다."
+    - "테스트 코드는 tests 디렉터리에 둔다."
+    - "테스트 파일명은 검증 대상 이름과 Test 접미사를 사용한다."
+
+ai_behavior:
+  - "레이어 위반 코드를 제안하지 않는다."
+  - "프로덕션 코드 변경 전 테스트를 먼저 제안한다."
+  - "리팩터링은 green 상태 이후에만 제안한다."
+  - "Domain 규칙 변경은 반드시 테스트 변경과 함께 제안한다."
+  - "Boundary 출력 포맷 변경은 Approval Test 변경 대상으로 취급한다."
+  - "C++17 범위를 벗어나는 기능을 제안하지 않는다."
+  - "구현보다 계약, 테스트, 의존성 방향을 먼저 확인한다."
