@@ -81,7 +81,7 @@ std::string FeedbackController::filter(const std::string& body) {
             return HtmlRenderer::renderPage("", u8"필터링 결과가 없습니다.", "", {}, {}, {});
         }
 
-        app_.filteredFeedbacks() = filtered;
+        app_.filteredFeedbacks () = filtered;
         auto sentimentResults = app_.analyzer().sent(filtered);
         auto keywordResults = app_.analyzer().kw(filtered);
         Logger::logInfo(u8"필터링 결과: " + std::to_string(filtered.size()) + u8"개의 피드백");
@@ -93,7 +93,11 @@ std::string FeedbackController::filter(const std::string& body) {
 }
 
 std::string FeedbackController::downloadCsv() const {
-    return CsvExporter::exportFeedbacks(app_.filteredFeedbacks());
+    const auto& selectedFeedbacks = app_.filteredFeedbacks ();
+    if (!selectedFeedbacks.empty()) {
+        return CsvExporter::exportFeedbacks(selectedFeedbacks);
+    }
+    return CsvExporter::exportFeedbacks(Session::getCurrentFeedbacks());
 }
 
 std::string FeedbackController::trim(const std::string& text) {

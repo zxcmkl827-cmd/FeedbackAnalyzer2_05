@@ -73,6 +73,7 @@ if(BUILD_TESTING)
     target_include_directories(sentiment_tests PRIVATE src/cpp)
     target_compile_definitions(sentiment_tests PRIVATE
         GOLDEN_MASTER_EXPECTED_PATH="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden_master_expected.txt"
+        NEW_FEATURE_GOLDEN_MASTER_EXPECTED_PATH="${CMAKE_CURRENT_SOURCE_DIR}/tests/new_feature_golden_master_expected.txt"
     )
     target_link_libraries(sentiment_tests PRIVATE GTest::gtest_main ApprovalTests::ApprovalTests)
 

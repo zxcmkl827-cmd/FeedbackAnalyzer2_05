@@ -2,6 +2,33 @@
 
 #include "Logger.h"
 
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+
+namespace {
+
+std::tm toLocalTime(std::time_t time) {
+    std::tm localTime{};
+#if defined(_MSC_VER)
+    localtime_s(&localTime, &time);
+#else
+    localTime = *std::localtime(&time);
+#endif
+    return localTime;
+}
+
+std::string makeFeedbackResultFilename() {
+    // Expected format example: FeedbackResult_20260522_132800.csv
+    const auto now = std::time(nullptr);
+    const auto localTime = toLocalTime(now);
+    std::ostringstream filename;
+    filename << "FeedbackResult_" << std::put_time(&localTime, "%Y%m%d_%H%M%S") << ".csv";
+    return filename.str();
+}
+
+}  // namespace
+
 FeedbackServer::FeedbackServer(ApplicationContext& app) : controller_(app) {
     registerRoutes();
 }
@@ -34,7 +61,7 @@ void FeedbackServer::registerRoutes() {
     });
 
     server_.Get("/download", [this](const httplib::Request&, httplib::Response& res) {
-        res.set_header("Content-Disposition", "attachment; filename=\"filtered_feedback.csv\"");
+        res.set_header("Content-Disposition", "attachment; filename=\"" + makeFeedbackResultFilename() + "\"");
         res.set_content(controller_.downloadCsv(), "text/csv; charset=UTF-8");
     });
 }

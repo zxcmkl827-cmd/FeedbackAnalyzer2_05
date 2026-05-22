@@ -2,7 +2,36 @@
 
 #include "Constants.h"
 
+#include <set>
+
 std::map<std::string, std::vector<std::string>> Filters::S_KEYWORDS;
+
+namespace {
+
+int keywordWeight(const std::string& keyword) {
+    if (keyword == u8"최고" || keyword == u8"최고입니다") {
+        return 2;
+    }
+    return 1;
+}
+
+int scoreKeywords(const std::string& text, const std::vector<std::string>& keywords) {
+    std::set<std::string> matchedKeywords;
+    int score = 0;
+
+    for (const auto& keyword : keywords) {
+        if (text.find(keyword) == std::string::npos) {
+            continue;
+        }
+        if (matchedKeywords.insert(keyword).second) {
+            score += keywordWeight(keyword);
+        }
+    }
+
+    return score;
+}
+
+}  // namespace
 
 void Filters::initFilterKeywords() {
     S_KEYWORDS[u8"긍정"] = {
@@ -30,16 +59,18 @@ bool Filters::containsAny(const std::string& text, const std::vector<std::string
 }
 
 std::string Filters::classifySentiment(const std::string& text) {
-    static const std::vector<std::string> priority = {
-        u8"긍정",
-        u8"부정",
-        u8"중립"
-    };
+    const int positiveScore = scoreKeywords(text, S_KEYWORDS[u8"긍정"]);
+    const int negativeScore = scoreKeywords(text, S_KEYWORDS[u8"부정"]);
+    const int neutralScore = scoreKeywords(text, S_KEYWORDS[u8"중립"]);
 
-    for (const auto& sentiment : priority) {
-        if (containsAny(text, S_KEYWORDS[sentiment])) {
-            return sentiment;
-        }
+    if (positiveScore > negativeScore && positiveScore > neutralScore) {
+        return u8"긍정";
+    }
+    if (negativeScore > positiveScore && negativeScore > neutralScore) {
+        return u8"부정";
+    }
+    if (neutralScore > positiveScore && neutralScore > negativeScore) {
+        return u8"중립";
     }
 
     return u8"중립";

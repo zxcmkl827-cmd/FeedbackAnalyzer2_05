@@ -1,5 +1,7 @@
 #include "TextAnalyzer.h"
 
+#include <set>
+
 std::map<std::string, int> TextAnalyzer::globalSent;
 std::map<std::string, int> TextAnalyzer::globalKw;
 
@@ -22,13 +24,30 @@ const std::vector<std::string>& neutralContexts() {
     return contexts;
 }
 
-const std::vector<std::string>& sentimentPriority() {
-    static const std::vector<std::string> priority = {
-        u8"부정",
-        u8"긍정"
-    };
+int sentimentWeight(const std::string& keyword) {
+    if (keyword == u8"최고" || keyword == u8"최고입니다" || keyword == u8"최고에요" || keyword == u8"최고다") {
+        return 2;
+    }
+    return 1;
+}
 
-    return priority;
+int sentimentScore(const std::string& text, const std::vector<std::string>& keywords) {
+    std::set<std::string> matchedKeywords;
+    int score = 0;
+
+    for (const auto& keyword : keywords) {
+        if (keyword == u8"편합니다" && text.find(u8"불편합니다") != std::string::npos) {
+            continue;
+        }
+        if (text.find(keyword) == std::string::npos) {
+            continue;
+        }
+        if (matchedKeywords.insert(keyword).second) {
+            score += sentimentWeight(keyword);
+        }
+    }
+
+    return score;
 }
 
 }  // namespace
@@ -49,10 +68,15 @@ std::string TextAnalyzer::classifySentiment(const std::string& text) {
         return u8"중립";
     }
 
-    for (const auto& sentiment : sentimentPriority()) {
-        if (containsAny(text, Constants::SENTIMENT_KEYWORDS[sentiment])) {
-            return sentiment;
-        }
+    const int positiveScore = sentimentScore(text, Constants::SENTIMENT_KEYWORDS[u8"긍정"]);
+    const int negativeScore = sentimentScore(text, Constants::SENTIMENT_KEYWORDS[u8"부정"]);
+
+    if (positiveScore > negativeScore) {
+        return u8"긍정";
+    }
+
+    if (negativeScore > positiveScore) {
+        return u8"부정";
     }
 
     return u8"중립";

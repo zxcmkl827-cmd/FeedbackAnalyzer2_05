@@ -1,10 +1,15 @@
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <fstream>
 #include <map>
+#include <regex>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "Constants.h"
+#include "CsvExporter.cpp"
 #include "Feedback.h"
 #include "TextAnalyzer.h"
 
@@ -903,6 +908,161 @@ TEST(SentimentAnalyzerTest, test_neutral_20) {
     const std::map<std::string, int> result = analyzer.sent(feedbacks);
 
     // Then: 감정 결과는 중립이어야 한다.
+    EXPECT_EQ(result.at(u8"긍정"), 0);
+    EXPECT_EQ(result.at(u8"중립"), 1);
+    EXPECT_EQ(result.at(u8"부정"), 0);
+}
+
+TEST(CsvResultSaveTest, csv_save_01_filename_contains_feedback_result_timestamp) {
+    // Given: HTTP 다운로드 경로 구현 소스가 있다.
+    const auto sourcePath =
+        std::filesystem::path(__FILE__).parent_path().parent_path() / "src" / "cpp" / "FeedbackServer.cpp";
+    std::ifstream sourceFile(sourcePath);
+    ASSERT_TRUE(sourceFile.is_open());
+    std::stringstream buffer;
+    buffer << sourceFile.rdbuf();
+    const std::string source = buffer.str();
+
+    // When: 다운로드 파일명 계약을 확인한다.
+    const std::regex expectedFilenamePattern(R"(FeedbackResult_[0-9]{8}_[0-9]{6}\.csv)");
+
+    // Then: 파일명은 FeedbackResult_[현재시간].csv 형식이어야 한다.
+    EXPECT_TRUE(std::regex_search(source, expectedFilenamePattern));
+}
+
+TEST(CsvResultSaveTest, csv_save_02_csv_contains_analysis_result_columns) {
+    // Given: 긍정, 부정, 중립 피드백이 각각 포함된 입력 데이터가 있다.
+    const std::vector<Feedback> feedbacks{
+        Feedback(u8"제품이 정말 좋아요."),
+        Feedback(u8"가격이 비싸요."),
+        Feedback(u8"일반 문의 내용입니다.")
+    };
+
+    // When: 결과 CSV를 생성한다.
+    const std::string csv = CsvExporter::exportFeedbacks(feedbacks);
+
+    // Then: CSV에는 분석 결과 컬럼이 포함되어야 한다.
+    EXPECT_NE(csv.find("text"), std::string::npos);
+    EXPECT_NE(csv.find("sentiment"), std::string::npos);
+    EXPECT_NE(csv.find("category"), std::string::npos);
+}
+
+TEST(CsvResultSaveTest, csv_save_03_download_uses_analyzed_feedbacks_without_filtering) {
+    // Given: 다운로드 컨트롤러 구현 소스가 있다.
+    const auto sourcePath =
+        std::filesystem::path(__FILE__).parent_path().parent_path() / "src" / "cpp" / "FeedbackController.cpp";
+    std::ifstream sourceFile(sourcePath);
+    ASSERT_TRUE(sourceFile.is_open());
+    std::stringstream buffer;
+    buffer << sourceFile.rdbuf();
+    const std::string source = buffer.str();
+
+    // When: 다운로드 데이터 소스를 확인한다.
+    const bool dependsOnlyOnFilteredFeedbacks = source.find("filteredFeedbacks()") != std::string::npos;
+
+    // Then: 필터 전 분석 데이터도 다운로드 가능해야 하므로 filteredFeedbacks에만 의존하면 안 된다.
+    EXPECT_FALSE(dependsOnlyOnFilteredFeedbacks);
+}
+
+TEST(CsvResultSaveTest, csv_save_04_csv_escapes_comma_quote_and_newline) {
+    // Given: CSV 특수문자를 포함한 피드백이 있다.
+    const std::vector<Feedback> feedbacks{
+        Feedback(u8"배송이 빠르고, 포장이 \"좋아요\"\n다음에도 구매")
+    };
+
+    // When: 결과 CSV를 생성한다.
+    const std::string csv = CsvExporter::exportFeedbacks(feedbacks);
+
+    // Then: 쉼표, 큰따옴표, 줄바꿈이 포함된 필드는 RFC 4180 방식으로 이스케이프되어야 한다.
+    EXPECT_NE(csv.find(u8"\"배송이 빠르고, 포장이 \"\"좋아요\"\"\n다음에도 구매\""), std::string::npos);
+}
+
+TEST(CsvResultSaveTest, csv_save_05_csv_starts_with_utf8_bom) {
+    // Given: 한글 피드백이 포함된 입력 데이터가 있다.
+    const std::vector<Feedback> feedbacks{Feedback(u8"제품이 정말 좋아요.")};
+
+    // When: 결과 CSV를 생성한다.
+    const std::string csv = CsvExporter::exportFeedbacks(feedbacks);
+
+    // Then: Excel 호환성을 위해 UTF-8 BOM으로 시작해야 한다.
+    ASSERT_GE(csv.size(), 3U);
+    EXPECT_EQ(static_cast<unsigned char>(csv[0]), 0xEF);
+    EXPECT_EQ(static_cast<unsigned char>(csv[1]), 0xBB);
+    EXPECT_EQ(static_cast<unsigned char>(csv[2]), 0xBF);
+}
+
+TEST(WeightedSentimentAnalyzerTest, weighted_sentiment_01_positive_wins_by_keyword_count) {
+    // Given: 긍정 키워드 3개와 부정 키워드 1개가 포함된 피드백이 있다.
+    Constants::init();
+    TextAnalyzer analyzer;
+    const std::vector<Feedback> feedbacks{Feedback(u8"좋아요 만족 추천하지만 조금 불편합니다.")};
+
+    // When: 감정 분석을 수행한다.
+    const std::map<std::string, int> result = analyzer.sent(feedbacks);
+
+    // Then: 긍정 키워드 카운트가 더 많으므로 최종 감정은 긍정이어야 한다.
+    EXPECT_EQ(result.at(u8"긍정"), 1);
+    EXPECT_EQ(result.at(u8"중립"), 0);
+    EXPECT_EQ(result.at(u8"부정"), 0);
+}
+
+TEST(WeightedSentimentAnalyzerTest, weighted_sentiment_02_negative_wins_by_keyword_count) {
+    // Given: 부정 키워드 3개와 긍정 키워드 1개가 포함된 피드백이 있다.
+    Constants::init();
+    TextAnalyzer analyzer;
+    const std::vector<Feedback> feedbacks{Feedback(u8"불만 실망 문제는 있지만 상담은 좋아요.")};
+
+    // When: 감정 분석을 수행한다.
+    const std::map<std::string, int> result = analyzer.sent(feedbacks);
+
+    // Then: 부정 키워드 카운트가 더 많으므로 최종 감정은 부정이어야 한다.
+    EXPECT_EQ(result.at(u8"긍정"), 0);
+    EXPECT_EQ(result.at(u8"중립"), 0);
+    EXPECT_EQ(result.at(u8"부정"), 1);
+}
+
+TEST(WeightedSentimentAnalyzerTest, weighted_sentiment_03_higher_positive_weight_wins_on_same_count) {
+    // Given: 긍정 키워드 1개와 부정 키워드 1개가 있고 긍정 가중치가 더 높아야 하는 피드백이 있다.
+    Constants::init();
+    TextAnalyzer analyzer;
+    const std::vector<Feedback> feedbacks{Feedback(u8"최고입니다만 배송이 늦어요.")};
+
+    // When: 감정 분석을 수행한다.
+    const std::map<std::string, int> result = analyzer.sent(feedbacks);
+
+    // Then: 가중 점수 합산 결과에 따라 최종 감정은 긍정이어야 한다.
+    EXPECT_EQ(result.at(u8"긍정"), 1);
+    EXPECT_EQ(result.at(u8"중립"), 0);
+    EXPECT_EQ(result.at(u8"부정"), 0);
+}
+
+TEST(WeightedSentimentAnalyzerTest, weighted_sentiment_04_equal_weight_scores_are_neutral) {
+    // Given: 긍정 키워드와 부정 키워드가 동일 점수로 포함된 피드백이 있다.
+    Constants::init();
+    TextAnalyzer analyzer;
+    const std::vector<Feedback> feedbacks{Feedback(u8"좋아요 하지만 불편합니다.")};
+
+    // When: 감정 분석을 수행한다.
+    const std::map<std::string, int> result = analyzer.sent(feedbacks);
+
+    // Then: 동점 정책에 따라 최종 감정은 중립이어야 한다.
+    EXPECT_EQ(result.at(u8"긍정"), 0);
+    EXPECT_EQ(result.at(u8"중립"), 1);
+    EXPECT_EQ(result.at(u8"부정"), 0);
+}
+
+TEST(WeightedSentimentAnalyzerTest, weighted_sentiment_05_neutral_context_overrides_weighted_score) {
+    // Given: 감정 키워드가 있지만 중립 문맥으로 등록된 피드백이 있다.
+    Constants::init();
+    TextAnalyzer analyzer;
+    const std::vector<Feedback> feedbacks{
+        Feedback(u8"좋아요 버튼과 환불 정책 안내를 확인했습니다.")
+    };
+
+    // When: 감정 분석을 수행한다.
+    const std::map<std::string, int> result = analyzer.sent(feedbacks);
+
+    // Then: 키워드 점수와 무관하게 최종 감정은 중립이어야 한다.
     EXPECT_EQ(result.at(u8"긍정"), 0);
     EXPECT_EQ(result.at(u8"중립"), 1);
     EXPECT_EQ(result.at(u8"부정"), 0);
