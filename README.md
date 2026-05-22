@@ -66,6 +66,24 @@
 - [ ] `TextAnalyzer::sent()`의 단순 부분 문자열 매칭으로 인한 감정 오탐 방지
 - [ ] `Constants::SENTIMENT_KEYWORDS`의 긍정/부정 표현 누락 보강
 
+## Golden Master 회귀 안전장치
+
+> Refactoring 시작 전 구축. GREEN 완료 후 즉시 적용.
+
+### 기준 파일 생성
+- [ ] GM-01: golden_master_expected.txt 생성 
+- [ ] GM-02: 시나리오 추가
+
+### 테스트 코드
+- [ ] GM-03: test_golden_master.cpp + golden_master_expected.txt 작성
+- [ ] GM-04: approve 패턴 적용 (파일 없으면 생성, 있으면 비교)
+- [ ] GM-05: CMake: add_test PASS 확인
+
+### CI 연동
+- [ ] GM-06: .github/workflows/golden_master.yml 작성
+- [ ] GM-07: PR 머지 차단 (required status check) 설정
+- [ ] GM-08: Refactoring 후 Golden Master 재실행 → PASS 확인
+
 ## 요구사항
 
 - C++17 이상 지원 컴파일러 (MSVC, GCC, Clang)

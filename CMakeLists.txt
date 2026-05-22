@@ -33,10 +33,11 @@ endif()
 include(CTest)
 
 if(BUILD_TESTING)
+    include(FetchContent)
+
     find_package(GTest QUIET)
 
     if(NOT GTest_FOUND)
-        include(FetchContent)
         set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
         FetchContent_Declare(
             googletest
@@ -46,14 +47,27 @@ if(BUILD_TESTING)
         FetchContent_MakeAvailable(googletest)
     endif()
 
+    set(APPROVAL_TESTS_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(APPROVAL_TESTS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        ApprovalTests
+        GIT_REPOSITORY https://github.com/approvals/ApprovalTests.cpp.git
+        GIT_TAG master
+    )
+    FetchContent_MakeAvailable(ApprovalTests)
+
     add_executable(sentiment_tests
         tests/sentiment_tests.cpp
+        tests/golden_master_tests.cpp
         src/cpp/Constants.cpp
         src/cpp/TextAnalyzer.cpp
     )
 
     target_include_directories(sentiment_tests PRIVATE src/cpp)
-    target_link_libraries(sentiment_tests PRIVATE GTest::gtest_main)
+    target_compile_definitions(sentiment_tests PRIVATE
+        GOLDEN_MASTER_EXPECTED_PATH="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden_master_expected.txt"
+    )
+    target_link_libraries(sentiment_tests PRIVATE GTest::gtest_main ApprovalTests::ApprovalTests)
 
     include(GoogleTest)
     gtest_discover_tests(sentiment_tests)
