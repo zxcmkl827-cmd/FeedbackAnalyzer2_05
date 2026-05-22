@@ -10,8 +10,15 @@ endif()
 
 add_executable(feedback_analyzer
     src/cpp/main.cpp
+    src/cpp/ApplicationContext.cpp
     src/cpp/Constants.cpp
+    src/cpp/CsvExporter.cpp
+    src/cpp/CsvParser.cpp
+    src/cpp/FeedbackController.cpp
+    src/cpp/FeedbackServer.cpp
     src/cpp/Filters.cpp
+    src/cpp/FormParser.cpp
+    src/cpp/HtmlRenderer.cpp
     src/cpp/Logger.cpp
     src/cpp/Session.cpp
     src/cpp/TextAnalyzer.cpp

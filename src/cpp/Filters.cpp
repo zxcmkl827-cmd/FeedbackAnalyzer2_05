@@ -1,5 +1,7 @@
 #include "Filters.h"
 
+#include "Constants.h"
+
 std::map<std::string, std::vector<std::string>> Filters::S_KEYWORDS;
 
 void Filters::initFilterKeywords() {
@@ -18,4 +20,73 @@ void Filters::initFilterKeywords() {
         u8"괜찮", u8"보통", u8"평범", u8"무난", u8"그냥", u8"전반적", u8"완료",
         u8"적당", u8"나쁘지 않", u8"특별", u8"없"
     };
+}
+
+bool Filters::containsAny(const std::string& text, const std::vector<std::string>& keywords) {
+    for (const auto& kw : keywords) {
+        if (text.find(kw) != std::string::npos) return true;
+    }
+    return false;
+}
+
+std::string Filters::classifySentiment(const std::string& text) {
+    static const std::vector<std::string> priority = {
+        u8"긍정",
+        u8"부정",
+        u8"중립"
+    };
+
+    for (const auto& sentiment : priority) {
+        if (containsAny(text, S_KEYWORDS[sentiment])) {
+            return sentiment;
+        }
+    }
+
+    return u8"중립";
+}
+
+std::vector<Feedback> Filters::filterBySentiment(const std::vector<Feedback>& dataList,
+                                                 const std::string& sFilter) {
+    if (sFilter == u8"전체") {
+        return dataList;
+    }
+
+    std::vector<Feedback> filtered;
+    for (const auto& item : dataList) {
+        if (classifySentiment(item.getText()) == sFilter) {
+            filtered.push_back(item);
+        }
+    }
+    return filtered;
+}
+
+std::vector<Feedback> Filters::filterByKeyword(const std::vector<Feedback>& dataList,
+                                               const std::string& kFilter) {
+    if (kFilter == u8"전체") {
+        return dataList;
+    }
+
+    std::vector<Feedback> filtered;
+    if (!Constants::CATEGORY_KEYWORDS.count(kFilter)) {
+        return filtered;
+    }
+
+    const auto& catMap = Constants::CATEGORY_KEYWORDS[kFilter];
+    for (const auto& item : dataList) {
+        const std::string& txt = item.getText();
+        for (const auto& subEntry : catMap) {
+            if (subEntry.first == "main") continue;
+            if (containsAny(txt, subEntry.second)) {
+                filtered.push_back(item);
+                break;
+            }
+        }
+    }
+    return filtered;
+}
+
+std::vector<Feedback> Filters::fil(const std::vector<Feedback>& dataList,
+                                   const std::string& sFilter,
+                                   const std::string& kFilter) {
+    return filterByKeyword(filterBySentiment(dataList, sFilter), kFilter);
 }
