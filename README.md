@@ -58,6 +58,14 @@
 - [ ] 감정 분석 필터 규칙을 File DB 기반으로 관리
 - [ ] 출력 계약 변경 시 Approval Test 승인 파일 변경으로 추적
 
+### RED 단계 To-Do 리스트 결함 목록
+
+- [ ] 긍정 의미 표현이 중립으로 분류되는 결함 10건 수정 (`Docs/defect_list.md`의 `DEF-001` ~ `DEF-010`)
+- [ ] 부정 의미 표현이 중립으로 분류되는 결함 10건 수정 (`Docs/defect_list.md`의 `DEF-011` ~ `DEF-020`)
+- [ ] 중립 문맥이 긍정 또는 부정으로 오탐되는 결함 10건 수정 (`Docs/defect_list.md`의 `DEF-021` ~ `DEF-030`)
+- [ ] `TextAnalyzer::sent()`의 단순 부분 문자열 매칭으로 인한 감정 오탐 방지
+- [ ] `Constants::SENTIMENT_KEYWORDS`의 긍정/부정 표현 누락 보강
+
 ## 요구사항
 
 - C++17 이상 지원 컴파일러 (MSVC, GCC, Clang)

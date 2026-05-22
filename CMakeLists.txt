@@ -4,6 +4,10 @@ project(FeedbackAnalyzer LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 add_executable(feedback_analyzer
     src/cpp/main.cpp
     src/cpp/Constants.cpp
@@ -24,4 +28,33 @@ if(WIN32)
         WINVER=0x0A00
     )
     target_link_libraries(feedback_analyzer PRIVATE ws2_32)
+endif()
+
+include(CTest)
+
+if(BUILD_TESTING)
+    find_package(GTest QUIET)
+
+    if(NOT GTest_FOUND)
+        include(FetchContent)
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+        FetchContent_Declare(
+            googletest
+            URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+            DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        )
+        FetchContent_MakeAvailable(googletest)
+    endif()
+
+    add_executable(sentiment_tests
+        tests/sentiment_tests.cpp
+        src/cpp/Constants.cpp
+        src/cpp/TextAnalyzer.cpp
+    )
+
+    target_include_directories(sentiment_tests PRIVATE src/cpp)
+    target_link_libraries(sentiment_tests PRIVATE GTest::gtest_main)
+
+    include(GoogleTest)
+    gtest_discover_tests(sentiment_tests)
 endif()
